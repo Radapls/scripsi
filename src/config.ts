@@ -1,7 +1,6 @@
 import { config } from 'dotenv';
-import { resolve } from 'path';
+import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: resolve(__dirname, '..', '.env') });
@@ -19,7 +18,7 @@ export interface Config {
     token: string;
     username: string;
   };
-  jira: {
+  jira?: {
     url: string;
     token: string;
     email: string;
@@ -40,6 +39,11 @@ export function getConfig(): Config {
     return val ?? '';
   };
 
+  const isConfigured = (key: string): boolean => {
+    const val = process.env[key];
+    return !!val && !val.includes('your_');
+  };
+
   const cfg: Config = {
     provider,
     gitlab: {
@@ -51,13 +55,15 @@ export function getConfig(): Config {
       token: provider === 'github' ? require('GITHUB_TOKEN') : process.env['GITHUB_TOKEN']!,
       username: provider === 'github' ? require('GITHUB_USERNAME') : (process.env['GITHUB_USERNAME'] ?? ''),
     } : undefined,
-    jira: {
-      url: require('JIRA_URL'),
-      token: require('JIRA_TOKEN'),
-      email: require('JIRA_EMAIL'),
-    },
+    jira: isConfigured('JIRA_URL')
+      ? {
+          url: require('JIRA_URL'),
+          token: require('JIRA_TOKEN'),
+          email: require('JIRA_EMAIL'),
+        }
+      : undefined,
     docs: {
-      group: process.env['DOCS_GROUP'] ?? 'eradjua',
+      group: process.env['DOCS_GROUP'] ?? 'your_username_group',
       repoPrefix: process.env['DOCS_REPO_PREFIX'] ?? 'scripsi',
     },
   };

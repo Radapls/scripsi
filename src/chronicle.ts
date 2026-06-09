@@ -3,7 +3,7 @@ import { resolve } from 'path';
 import { Config } from './config.js';
 import { GitLabClient } from './gitlab.js';
 import { GitHubClient } from './github.js';
-import { JiraClient, TicketSummary } from './jira.js';
+import { JiraClient, TicketSummary, MinimalTicket } from './jira.js';
 import simpleGit from 'simple-git';
 
 interface GitRemote {
@@ -16,7 +16,7 @@ interface GitRemote {
 
 export class Scripsi {
   private git: GitRemote;
-  private jira: JiraClient;
+  private jira: JiraClient | null;
   private config: Config;
 
   constructor(config: Config) {
@@ -24,13 +24,16 @@ export class Scripsi {
     this.git = config.provider === 'github'
       ? new GitHubClient(config)
       : new GitLabClient(config);
-    this.jira = new JiraClient(config);
+    this.jira = config.jira ? new JiraClient(config) : null;
   }
 
-  async verify(): Promise<{ git: boolean; jira: boolean; provider: string }> {
+  async verify(): Promise<{ git: boolean; jira?: boolean; provider: string }> {
+    const jiraPromise = this.jira
+      ? this.jira.verifyConnection()
+      : Promise.resolve(undefined);
     const [git, jira] = await Promise.all([
       this.git.verifyConnection(),
-      this.jira.verifyConnection(),
+      jiraPromise,
     ]);
     return { git, jira, provider: this.config.provider };
   }
@@ -96,22 +99,41 @@ export class Scripsi {
   }
 
   async logTicket(ticketKey: string, changeSummary: string, projectSlug?: string): Promise<string> {
-    const ticket = await this.jira.getTicket(ticketKey);
-    const slug = projectSlug ?? ticket.project.toLowerCase();
-    const project = await this.ensureDocsRepo(slug);
+    if (this.jira) {
+      const ticket = await this.jira.getTicket(ticketKey);
+      const slug = projectSlug ?? ticket.project.toLowerCase();
+      const project = await this.ensureDocsRepo(slug);
 
-    const entry = this.buildEntry(ticket, changeSummary);
-    const filePath = `entries/${ticketKey}.md`;
+      const entry = this.buildEntry(ticket, changeSummary);
+      const filePath = `entries/${ticketKey}.md`;
 
-    const existing = await this.git.getFile(project.id, filePath);
-    const content = existing
-      ? `${existing}\n---\n\n${entry}`
-      : `# ${ticketKey}: ${ticket.summary}\n\n${entry}`;
+      const existing = await this.git.getFile(project.id, filePath);
+      const content = existing
+        ? `${existing}\n---\n\n${entry}`
+        : `# ${ticketKey}: ${ticket.summary}\n\n${entry}`;
 
-    await this.git.createOrUpdateFile(project.id, filePath, content, `docs: log work on ${ticketKey}`);
-    await this.updateIndex(project.id, ticketKey, ticket.summary);
+      await this.git.createOrUpdateFile(project.id, filePath, content, `docs: log work on ${ticketKey}`);
+      await this.updateIndex(project.id, ticketKey, ticket.summary);
 
-    return project.http_url_to_repo;
+      return project.http_url_to_repo;
+    } else {
+      const slug = projectSlug ?? ticketKey.toLowerCase();
+      const project = await this.ensureDocsRepo(slug);
+
+      const ticket: MinimalTicket = { key: ticketKey, summary: changeSummary };
+      const entry = this.buildEntry(ticket, changeSummary);
+      const filePath = `entries/${ticketKey}.md`;
+
+      const existing = await this.git.getFile(project.id, filePath);
+      const content = existing
+        ? `${existing}\n---\n\n${entry}`
+        : `# ${ticketKey}: ${changeSummary}\n\n${entry}`;
+
+      await this.git.createOrUpdateFile(project.id, filePath, content, `docs: log work on ${ticketKey}`);
+      await this.updateIndex(project.id, ticketKey, changeSummary);
+
+      return project.http_url_to_repo;
+    }
   }
 
   async logFromGit(changeSummary: string, cwd: string): Promise<string> {
@@ -131,22 +153,35 @@ export class Scripsi {
     return this.logTicket(ticketKey, fullSummary);
   }
 
-  private buildEntry(ticket: TicketSummary, changeSummary: string): string {
+  private buildEntry(ticket: TicketSummary | MinimalTicket, changeSummary: string): string {
     const now = new Date().toISOString();
-    return [
+    const lines: string[] = [
       `## Entry: ${now.split('T')[0]}`,
       '',
-      `**Status:** ${ticket.status}`,
-      `**Type:** ${ticket.type}`,
-      `**Project:** ${ticket.projectName}`,
-      ticket.labels.length ? `**Labels:** ${ticket.labels.join(', ')}` : '',
+    ];
+
+    if ('status' in ticket) {
+      const t = ticket as TicketSummary;
+      lines.push(
+        `**Status:** ${t.status}`,
+        `**Type:** ${t.type}`,
+        `**Project:** ${t.projectName}`,
+      );
+      if (t.labels.length) {
+        lines.push(`**Labels:** ${t.labels.join(', ')}`);
+      }
+    }
+
+    lines.push(
       '',
       '### Changes Made',
       '',
       changeSummary,
       '',
       `_Logged at ${now}_`,
-    ].filter(Boolean).join('\n');
+    );
+
+    return lines.join('\n');
   }
 
   private async updateIndex(projectId: number, ticketKey: string, summary: string) {

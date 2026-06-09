@@ -12,15 +12,19 @@ program
 
 program
   .command('verify')
-  .description('Verify GitLab and Jira connections')
+  .description('Verify Git provider and Jira connections')
   .action(async () => {
     const config = getConfig();
     const chronicle = new Scripsi(config);
     const status = await chronicle.verify();
     const label = status.provider === 'github' ? 'GitHub' : 'GitLab';
     console.log(`${label}: ${status.git ? '✅ Connected' : '❌ Failed'}`);
-    console.log(`Jira:   ${status.jira ? '✅ Connected' : '❌ Failed'}`);
-    if (!status.git || !status.jira) process.exit(1);
+    if (status.jira !== undefined) {
+      console.log(`Jira:   ${status.jira ? '✅ Connected' : '❌ Failed'}`);
+    } else {
+      console.log(`Jira:   ⏭️  Not configured (skipped)`);
+    }
+    if (!status.git || status.jira === false) process.exit(1);
   });
 
 program
@@ -40,10 +44,10 @@ program
 
 program
   .command('log')
-  .description('Log work done for a Jira ticket')
-  .argument('<ticket>', 'Jira ticket key (e.g., RMD-123)')
+  .description('Log work done for a ticket')
+  .argument('<ticket>', 'Ticket key (e.g., RMD-123)')
   .argument('<summary>', 'Summary of changes made')
-  .option('-p, --project <slug>', 'Override project slug (defaults to Jira project key)')
+  .option('-p, --project <slug>', 'Override project slug (defaults to ticket project key)')
   .action(async (ticket: string, summary: string, opts: { project?: string }) => {
     const config = getConfig();
     const chronicle = new Scripsi(config);

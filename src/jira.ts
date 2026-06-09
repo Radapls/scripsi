@@ -15,6 +15,11 @@ interface JiraIssue {
   };
 }
 
+export interface MinimalTicket {
+  key: string;
+  summary: string;
+}
+
 export interface TicketSummary {
   key: string;
   summary: string;
@@ -34,9 +39,9 @@ export class JiraClient {
   private email: string;
 
   constructor(config: Config) {
-    this.baseUrl = config.jira.url;
-    this.token = config.jira.token;
-    this.email = config.jira.email;
+    this.baseUrl = config.jira!.url;
+    this.token = config.jira!.token;
+    this.email = config.jira!.email;
   }
 
   private async request<T>(path: string): Promise<T> {
