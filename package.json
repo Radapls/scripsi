@@ -1,0 +1,24 @@
+{
+  "name": "scripsi",
+  "version": "1.0.0",
+  "description": "Self-documentation tool for AI-assisted development work",
+  "type": "module",
+  "bin": {
+    "scripsi": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "commander": "12.1.0",
+    "simple-git": "3.27.0",
+    "dotenv": "16.4.7"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3",
+    "tsx": "4.19.2",
+    "@types/node": "22.10.5"
+  }
+}
