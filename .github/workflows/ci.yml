@@ -11,6 +11,7 @@ jobs:
     name: 🧪 Build & Test
     runs-on: ubuntu-latest
     env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       NODE_OPTIONS: "--disable-warning=DeprecationWarning --disable-warning=ExperimentalWarning"
       GIT_PROVIDER: github
       GITHUB_TOKEN: ci-test-token
@@ -29,7 +30,8 @@ jobs:
         run: pnpm build
 
       - name: 🧪 Run tests
-        run: pnpm test -- --reporter=json --outputFile=test-results.json 2>&1 || true
+        id: tests
+        run: pnpm test -- --reporter=json --outputFile=test-results.json 2>&1; echo "exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: 📋 Test report
         if: always()
@@ -53,16 +55,6 @@ jobs:
             echo "⚠️ No test results found" >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: 🧪 Check test outcome
-        if: always()
-        shell: bash
-        run: |
-          if [ -f test-results.json ]; then
-            FAILED=$(node -e "const r=JSON.parse(require('fs').readFileSync('test-results.json','utf8'));process.exit(r.success?0:1)")
-            exit $?
-          fi
-          exit 1
-
       - name: ✅ Results
         if: always()
         run: |
@@ -71,4 +63,12 @@ jobs:
           echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Build | ${{ job.status == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Tests | ${{ job.status == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests | ${{ steps.tests.outputs.exit_code == '0' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: 🧪 Check test outcome
+        if: always()
+        shell: bash
+        run: |
+          if [ "${{ steps.tests.outputs.exit_code }}" != "0" ]; then
+            exit 1
+          fi
