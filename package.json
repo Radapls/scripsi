@@ -1,12 +1,18 @@
 {
   "name": "scripsi",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "Self-documentation tool for AI-assisted development work",
   "type": "module",
+  "packageManager": "pnpm@11.5.2",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.0.0"
+  },
   "bin": {
     "scripsi": "./dist/cli.js"
   },
   "scripts": {
+    "preinstall": "node -e \"if(process.env.npm_execpath?.includes('pnpm')===false){console.error('Use pnpm to install dependencies: npm install -g pnpm && pnpm install');process.exit(1)}\"",
     "build": "tsc",
     "dev": "tsx src/cli.ts",
     "start": "node dist/cli.js"
