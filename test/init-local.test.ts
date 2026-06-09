@@ -6,6 +6,20 @@ import { tmpdir } from 'os';
 
 const CLI = 'npx tsx src/cli.ts';
 
+// Minimal env vars so config validation passes without real credentials.
+// The init --local tests never call any remote API.
+// Minimal env vars so config validation passes without real credentials.
+// GitHub client uses api.github.com directly (no URL needed).
+// GitLab vars included as fallback if provider is switched.
+const TEST_ENV = {
+  GIT_PROVIDER: 'github',
+  GITHUB_TOKEN: 'test-token',
+  GITHUB_USERNAME: 'test-user',
+  GITLAB_URL: 'https://gitlab.example.com',
+  GITLAB_TOKEN: 'test-token',
+  GITLAB_USERNAME: 'test-user',
+};
+
 describe('init --local', () => {
   let tempDir: string;
 
@@ -20,7 +34,7 @@ describe('init --local', () => {
   function run(args: string) {
     return execSync(`${CLI} ${args}`, {
       encoding: 'utf-8',
-      env: { ...process.env },
+      env: { ...process.env, ...TEST_ENV },
       timeout: 15_000,
     });
   }
@@ -29,7 +43,7 @@ describe('init --local', () => {
     try {
       execSync(`${CLI} ${args}`, {
         encoding: 'utf-8',
-        env: { ...process.env },
+        env: { ...process.env, ...TEST_ENV },
         timeout: 15_000,
         stdio: 'pipe',
       });

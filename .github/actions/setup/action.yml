@@ -23,15 +23,15 @@ runs:
     - name: 🪶 Summary
       shell: bash
       run: |
-        node -v > /tmp/node-version.txt
-        pnpm -v > /tmp/pnpm-version.txt
+        NODE_VER=$(node -v)
+        PNPM_VER=$(pnpm -v)
         cat >> $GITHUB_STEP_SUMMARY <<EOF
         ## 🪶 Scripsi CI
 
         | Tool | Version |
         |------|---------|
-        | Node | \`v$(cat /tmp/node-version.txt)\` |
-        | pnpm | \`$(cat /tmp/pnpm-version.txt)\` |
+        | Node | \`${NODE_VER}\` |
+        | pnpm | \`${PNPM_VER}\` |
         | OS | \`${{ runner.os }}\` |
 
         ---

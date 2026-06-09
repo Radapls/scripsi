@@ -10,6 +10,14 @@ jobs:
   build-and-test:
     name: 🧪 Build & Test
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: "--disable-warning=DeprecationWarning --disable-warning=ExperimentalWarning"
+      GIT_PROVIDER: github
+      GITHUB_TOKEN: ci-test-token
+      GITHUB_USERNAME: ci-test-user
+      GITLAB_URL: https://gitlab.example.com
+      GITLAB_TOKEN: ci-test-token
+      GITLAB_USERNAME: ci-test-user
 
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +29,39 @@ jobs:
         run: pnpm build
 
       - name: 🧪 Run tests
-        run: pnpm test
+        run: pnpm test -- --reporter=json --outputFile=test-results.json 2>&1 || true
+
+      - name: 📋 Test report
+        if: always()
+        shell: bash
+        run: |
+          echo "## 🧪 Vitest Test Report" >> $GITHUB_STEP_SUMMARY
+          if [ -f test-results.json ]; then
+            echo "| Test | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+            node -e "
+              const r = JSON.parse(require('fs').readFileSync('test-results.json','utf8'));
+              const all = r.testResults.flatMap(f => f.assertionResults.map(a => ({
+                name: a.fullName || a.title,
+                status: a.status === 'passed' ? '✅ Passed' : '❌ Failed'
+              })));
+              all.forEach(t => console.log('| ' + t.name + ' | ' + t.status + ' |'));
+              console.log('');
+              console.log('**Summary:** ' + r.numPassedTests + '/' + r.numTotalTests + ' passed');
+            " >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No test results found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 🧪 Check test outcome
+        if: always()
+        shell: bash
+        run: |
+          if [ -f test-results.json ]; then
+            FAILED=$(node -e "const r=JSON.parse(require('fs').readFileSync('test-results.json','utf8'));process.exit(r.success?0:1)")
+            exit $?
+          fi
+          exit 1
 
       - name: ✅ Results
         if: always()
