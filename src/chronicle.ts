@@ -1,10 +1,10 @@
-import { mkdirSync, writeFileSync, existsSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
-import { Config } from './config.js';
-import { GitLabClient } from './gitlab.js';
-import { GitHubClient } from './github.js';
-import { JiraClient, TicketSummary, MinimalTicket } from './jira.js';
 import simpleGit from 'simple-git';
+import { Config } from './config.js';
+import { GitHubClient } from './github.js';
+import { GitLabClient } from './gitlab.js';
+import { JiraClient, MinimalTicket, TicketSummary } from './jira.js';
 
 interface GitRemote {
   verifyConnection(): Promise<boolean>;
@@ -44,12 +44,12 @@ export class Scripsi {
 
     if (!project) {
       console.log(`📁 Creating private docs repo: ${repoName}`);
-      project = await this.git.createProject(repoName, `Development chronicle for ${projectSlug}`);
+      project = await this.git.createProject(repoName, `Scripsi Docs for ${projectSlug}`);
       await this.git.createOrUpdateFile(
         project.id,
         'README.md',
-        `# Dev Chronicle: ${projectSlug}\n\nAuto-generated development documentation.\n\n## Entries\n\n`,
-        'Initial commit: chronicle setup'
+        `# Scripsi: ${projectSlug}\n\nAuto-generated development documentation.\n\n## Entries\n\n`,
+        'Initial commit: Scripsi setup'
       );
     }
 
@@ -70,17 +70,25 @@ export class Scripsi {
   }
 
   async initProjectLocal(projectSlug: string, description?: string, basePath?: string): Promise<string> {
-    const repoName = `${this.config.docs.repoPrefix}-${projectSlug}`;
-    const repoDir = resolve(basePath ?? process.cwd(), repoName);
+    const resolvedBase = resolve(basePath ?? process.cwd());
 
-    if (existsSync(repoDir)) return repoDir;
+    if (!existsSync(resolvedBase)) {
+      throw new Error(`Base path does not exist: ${resolvedBase}\n   Make sure the directory exists before creating a local docs repo.`);
+    }
+
+    const repoName = `${this.config.docs.repoPrefix}-${projectSlug}`;
+    const repoDir = resolve(resolvedBase, repoName);
+
+    if (existsSync(repoDir)) {
+      throw new Error(`A docs repo already exists at: ${repoDir}\n   Choose a different project slug or location.`);
+    }
 
     mkdirSync(repoDir, { recursive: true });
     mkdirSync(resolve(repoDir, 'entries'), { recursive: true });
 
     writeFileSync(
       resolve(repoDir, 'README.md'),
-      `# Dev Chronicle: ${projectSlug}\n\nAuto-generated development documentation.\n\n## Entries\n\n`
+      `# Scripsi: ${projectSlug}\n\nAuto-generated development documentation.\n\n## Entries\n\n`
     );
 
     if (description) {
@@ -93,7 +101,7 @@ export class Scripsi {
     const git = simpleGit(repoDir);
     await git.init();
     await git.add('.');
-    await git.commit('Initial commit: chronicle setup');
+    await git.commit('Initial commit: Scripsi setup');
 
     return repoDir;
   }
