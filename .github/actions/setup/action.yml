@@ -20,6 +20,12 @@ runs:
       shell: bash
       run: pnpm install --frozen-lockfile
 
+    - name: 🪶 Configure git
+      shell: bash
+      run: |
+        git config --global user.email "ci@scripsi.dev"
+        git config --global user.name "Scripsi CI"
+
     - name: 🪶 Summary
       shell: bash
       run: |
