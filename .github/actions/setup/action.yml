@@ -1,0 +1,38 @@
+name: '🪶 Scripsi CI'
+description: 'Setup Node + pnpm environment for Scripsi'
+branding:
+  icon: 'italic'
+  color: 'purple'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🪶 Setup pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: 🪶 Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+
+    - name: 🪶 Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
+
+    - name: 🪶 Summary
+      shell: bash
+      run: |
+        node -v > /tmp/node-version.txt
+        pnpm -v > /tmp/pnpm-version.txt
+        cat >> $GITHUB_STEP_SUMMARY <<EOF
+        ## 🪶 Scripsi CI
+
+        | Tool | Version |
+        |------|---------|
+        | Node | \`v$(cat /tmp/node-version.txt)\` |
+        | pnpm | \`$(cat /tmp/pnpm-version.txt)\` |
+        | OS | \`${{ runner.os }}\` |
+
+        ---
+        EOF
